@@ -15,7 +15,13 @@ fn usage() {
     println!("  task <name> - Add a new task to the current job session");
 }
 
-const PERSISTENT_FILE: &str = "session.json";
+fn version() {
+    let version = env!("CARGO_PKG_VERSION");
+    println!("Jobclock version {}", version);
+}
+
+const PERSISTENT_DIRECTORY: &str = "/tmp/jobclock";
+const PERSISTENT_FILE: &str = "/tmp/jobclock/session.json";
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Session {
@@ -98,6 +104,9 @@ impl Session {
     }
 
     fn save(&self) {
+        if !std::path::Path::new(PERSISTENT_DIRECTORY).exists() {
+            std::fs::create_dir_all(PERSISTENT_DIRECTORY).unwrap();
+        }
         let data = serde_json::to_string(&self).unwrap();
         std::fs::write(PERSISTENT_FILE, data).unwrap();
     }
@@ -138,6 +147,10 @@ fn main() {
         }
         "help" => {
             usage();
+            return;
+        }
+        "version" => {
+            version();
             return;
         }
         _ => {
