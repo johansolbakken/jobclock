@@ -18,7 +18,7 @@ fn usage() {
 
 fn version() {
     let version = env!("CARGO_PKG_VERSION");
-    println!("Jobclock version {}", version);
+    println!("Jobclock v{}", version);
 }
 
 #[cfg(test)]
