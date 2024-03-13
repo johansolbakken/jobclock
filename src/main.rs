@@ -59,9 +59,9 @@ impl Session {
 
     fn begin(&mut self) {
         if self.working {
-            println!("Job already started");
+            println!("Job session already started");
         } else {
-            println!("Job started");
+            println!("Job session started");
             self.start_time = chrono::Local::now();
             self.working = true;
         }
@@ -69,23 +69,23 @@ impl Session {
 
     fn end(&mut self) {
         if self.working {
-            println!("Job ended");
+            println!("Job session ended");
             println!("Timeline:");
             println!(
-                "  {} - Begin session",
+                "  {} - Begin job session",
                 chrono::Local::now().format("%d-%m-%Y %H:%M:%S")
             );
 
             for task in &self.tasks {
                 println!(
-                    "  {} - Job: {}",
+                    "  {} - Task: {}",
                     task.created_at.format("%d-%m-%Y %H:%M:%S"),
                     task.name
                 );
             }
 
             let end_time = chrono::Local::now();
-            println!("  {} - End session", end_time.format("%d-%m-%Y %H:%M:%S"));
+            println!("  {} - End job session", end_time.format("%d-%m-%Y %H:%M:%S"));
 
             let duration = end_time - self.start_time;
             let total_seconds = duration.num_seconds();
@@ -100,16 +100,16 @@ impl Session {
             self.working = false;
             self.tasks = vec![];
         } else {
-            println!("No job to end");
+            println!("No job session to end");
         }
     }
 
     fn job(&mut self, name: &str) {
         if !self.working {
-            println!("No job started");
+            println!("No job session started");
         } else {
             if name.is_empty() {
-                println!("Job name is required");
+                println!("Task name is required");
                 return;
             }
             let task = Task {
@@ -117,7 +117,7 @@ impl Session {
                 created_at: chrono::Local::now(),
             };
             self.tasks.push(task);
-            println!("Job added");
+            println!("Task added to job session");
         }
     }
 
@@ -136,14 +136,14 @@ impl Session {
 
     fn status(&self) {
         if self.working {
-            println!("Job started at {}", self.start_time.format("%d-%m-%Y %H:%M:%S"));
+            println!("Job session started at {}", self.start_time.format("%d-%m-%Y %H:%M:%S"));
             println!("Tasks:");
             if self.tasks.is_empty() {
                 println!("  No tasks added");
             }
             for task in &self.tasks {
                 println!(
-                    "  {} - Job: {}",
+                    "  {} - {}",
                     task.created_at.format("%d-%m-%Y %H:%M:%S"),
                     task.name
                 );
@@ -156,7 +156,7 @@ impl Session {
             let seconds = total_seconds % 60;
             println!("Total time: {}h {}m {}s", hours, minutes, seconds);
         } else {
-            println!("No job started");
+            println!("No job session started");
         }
     }
 }
