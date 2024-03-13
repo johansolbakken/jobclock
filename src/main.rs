@@ -151,7 +151,7 @@ fn main() {
         "end" => {
             session.end();
         }
-        "job" => {
+        "task" => {
             session.job(args.as_str());
         }
         "help" => {
