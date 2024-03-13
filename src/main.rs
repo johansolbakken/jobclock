@@ -85,7 +85,10 @@ impl Session {
             }
 
             let end_time = chrono::Local::now();
-            println!("  {} - End job session", end_time.format("%d-%m-%Y %H:%M:%S"));
+            println!(
+                "  {} - End job session",
+                end_time.format("%d-%m-%Y %H:%M:%S")
+            );
 
             let duration = end_time - self.start_time;
             let total_seconds = duration.num_seconds();
@@ -93,6 +96,18 @@ impl Session {
             let minutes = (total_seconds % 3600) / 60;
             let seconds = total_seconds % 60;
             println!("Total time: {}h {}m {}s", hours, minutes, seconds);
+
+            let task_summary = self
+                .tasks
+                .iter()
+                .map(|task| task.name.as_str())
+                .collect::<Vec<&str>>()
+                .join(". ");
+            if task_summary.is_empty() {
+                println!("No tasks added");
+            } else {
+                println!("\nSummary:\n{}", task_summary + ".");
+            }
 
             let hours = total_seconds as f64 / 3600.0;
             println!("Hours: {:.2}", hours);
@@ -136,7 +151,10 @@ impl Session {
 
     fn status(&self) {
         if self.working {
-            println!("Job session started at {}", self.start_time.format("%d-%m-%Y %H:%M:%S"));
+            println!(
+                "Job session started at {}",
+                self.start_time.format("%d-%m-%Y %H:%M:%S")
+            );
             println!("Tasks:");
             if self.tasks.is_empty() {
                 println!("  No tasks added");
