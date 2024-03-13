@@ -64,17 +64,14 @@ impl Session {
             println!("  {} - End session", end_time.format("%d-%m-%Y %H:%M:%S"));
 
             let duration = end_time - self.start_time;
-            println!(
-                "Total time: {}h {}m {}s",
-                duration.num_hours(),
-                duration.num_minutes(),
-                duration.num_seconds()
-            );
+            let total_seconds = duration.num_seconds();
+            let hours = total_seconds / 3600;
+            let minutes = (total_seconds % 3600) / 60;
+            let seconds = total_seconds % 60;
+            println!("Total time: {}h {}m {}s", hours, minutes, seconds);
 
-            let hours = duration.num_hours()
-                + (duration.num_minutes() / 60)
-                + (duration.num_seconds() / 3600);
-            println!("Hours: {}", hours);
+            let hours = total_seconds as f64 / 3600.0;
+            println!("Hours: {:.2}", hours);
 
             self.working = false;
             self.tasks = vec![];
