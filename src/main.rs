@@ -13,6 +13,7 @@ fn usage() {
     println!("  begin - Start a new job session");
     println!("  end - End the current job session");
     println!("  task <name> - Add a new task to the current job session");
+    println!("  status - Show the current job session status");
 }
 
 fn version() {
@@ -132,6 +133,32 @@ impl Session {
         let data = std::fs::read_to_string(persistent_file()).unwrap();
         serde_json::from_str(&data).unwrap()
     }
+
+    fn status(&self) {
+        if self.working {
+            println!("Job started at {}", self.start_time.format("%d-%m-%Y %H:%M:%S"));
+            println!("Tasks:");
+            if self.tasks.is_empty() {
+                println!("  No tasks added");
+            }
+            for task in &self.tasks {
+                println!(
+                    "  {} - Job: {}",
+                    task.created_at.format("%d-%m-%Y %H:%M:%S"),
+                    task.name
+                );
+            }
+
+            let duration = chrono::Local::now() - self.start_time;
+            let total_seconds = duration.num_seconds();
+            let hours = total_seconds / 3600;
+            let minutes = (total_seconds % 3600) / 60;
+            let seconds = total_seconds % 60;
+            println!("Total time: {}h {}m {}s", hours, minutes, seconds);
+        } else {
+            println!("No job started");
+        }
+    }
 }
 
 fn main() {
@@ -168,6 +195,10 @@ fn main() {
         }
         "version" => {
             version();
+            return;
+        }
+        "status" => {
+            session.status();
             return;
         }
         _ => {
