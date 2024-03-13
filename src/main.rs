@@ -20,6 +20,14 @@ fn version() {
     println!("Jobclock version {}", version);
 }
 
+#[cfg(test)]
+fn persistent_folder() -> std::path::PathBuf {
+    let mut path = std::path::PathBuf::new();
+    path.push("tmp");
+    path
+}
+
+#[cfg(not(test))]
 fn persistent_folder() -> std::path::PathBuf {
     let mut path = std::env::temp_dir();
     path.push("jobclock");
@@ -170,4 +178,30 @@ fn main() {
     }
 
     session.save();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_begin() {
+        let mut session = Session::new();
+        if persistent_file().exists() {
+            session = Session::load();
+        } else {
+            session.save();
+        }
+        session.begin();
+        assert_eq!(session.working, true);
+        session.job("Test");
+
+        for task in &session.tasks {
+            assert_eq!(task.name, "Test");
+        }
+
+        session.end();
+        assert_eq!(session.working, false);
+        assert_eq!(session.tasks.len(), 0);
+    }
 }
