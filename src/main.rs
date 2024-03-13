@@ -119,7 +119,7 @@ impl Session {
         }
     }
 
-    fn job(&mut self, name: &str) {
+    fn task(&mut self, name: &str) {
         if !self.working {
             println!("No job session started");
         } else {
@@ -205,7 +205,7 @@ fn main() {
             session.end();
         }
         "task" => {
-            session.job(args.as_str());
+            session.task(args.as_str());
         }
         "help" => {
             usage();
@@ -243,7 +243,7 @@ mod tests {
         }
         session.begin();
         assert_eq!(session.working, true);
-        session.job("Test");
+        session.task("Test");
 
         for task in &session.tasks {
             assert_eq!(task.name, "Test");
