@@ -20,8 +20,17 @@ fn version() {
     println!("Jobclock version {}", version);
 }
 
-const PERSISTENT_DIRECTORY: &str = "/tmp/jobclock";
-const PERSISTENT_FILE: &str = "/tmp/jobclock/session.json";
+fn persistent_folder() -> std::path::PathBuf {
+    let mut path = std::env::temp_dir();
+    path.push("jobclock");
+    path
+}
+
+fn persistent_file() -> std::path::PathBuf {
+    let mut path = persistent_folder();
+    path.push("session.json");
+    path
+}
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Session {
@@ -104,22 +113,22 @@ impl Session {
     }
 
     fn save(&self) {
-        if !std::path::Path::new(PERSISTENT_DIRECTORY).exists() {
-            std::fs::create_dir_all(PERSISTENT_DIRECTORY).unwrap();
+        if !persistent_folder().exists() {
+            std::fs::create_dir_all(persistent_folder()).unwrap();
         }
         let data = serde_json::to_string(&self).unwrap();
-        std::fs::write(PERSISTENT_FILE, data).unwrap();
+        std::fs::write(persistent_file(), data).unwrap();
     }
 
     fn load() -> Session {
-        let data = std::fs::read_to_string(PERSISTENT_FILE).unwrap();
+        let data = std::fs::read_to_string(persistent_file()).unwrap();
         serde_json::from_str(&data).unwrap()
     }
 }
 
 fn main() {
     let mut session = Session::new();
-    if std::path::Path::new(PERSISTENT_FILE).exists() {
+    if persistent_file().exists() {
         session = Session::load();
     } else {
         session.save();
