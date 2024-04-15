@@ -7,6 +7,7 @@ JobClock is a CLI (Command Line Interface) tool developed in Rust designed for t
 - **Start a Session:** Begin tracking time with a single command.
 - **End a Session:** Conclude the session and get a summary of all tasks completed along with the total time spent.
 - **Task Logging:** Add specific tasks to your session to track how much time you spend on each.
+- **Git Integration:** Collect all Git commit messages made during the session with a simple command.
 
 ## Installation
 
@@ -38,9 +39,19 @@ jobclock task <name>
 
 Replace `<name>` with the actual name of your task.
 
+### Collecting Git Commit Messages
+
+To collect all Git commit messages made during the current session, use the `git` command.
+
+```console
+jobclock git
+```
+
+This command will log all commit messages to your session summary.
+
 ### Ending a Session
 
-To end the current session and receive a summary of all tasks and the total time spent, use the `end` command.
+To end the current session and receive a summary of all tasks, commit messages, and the total time spent, use the `end` command.
 
 ```console
 jobclock end
@@ -52,7 +63,7 @@ Upon ending a session, JobClock will provide an output similar to the following:
 Job ended
 Timeline:
   13-03-2024 20:00:00 - Begin session
-  13-03-2024 20:05:00 - Job: Add frontend feature
+  13-03-2024 20:45:00 - Job: Add frontend feature
   13-03-2024 21:00:00 - End session
 Total time: 1h 5m 0s
 Hours: 1.08
