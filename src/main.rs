@@ -1,4 +1,6 @@
-#[derive(serde::Serialize, serde::Deserialize)]
+use std::{process::Command, str};
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 struct Task {
     name: String,
     created_at: chrono::DateTime<chrono::Local>,
@@ -10,10 +12,11 @@ fn usage() {
         std::env::args().nth(0).unwrap()
     );
     println!("Subcommands: ");
-    println!("  begin - Start a new job session");
-    println!("  end - End the current job session");
+    println!("  begin       - Start a new job session");
+    println!("  end         - End the current job session");
     println!("  task <name> - Add a new task to the current job session");
-    println!("  status - Show the current job session status");
+    println!("  status      - Show the current job session status");
+    println!("  git         - Extract tasks from git commits");
 }
 
 fn version() {
@@ -41,6 +44,77 @@ fn persistent_file() -> std::path::PathBuf {
     path
 }
 
+fn get_commit_titles_since(start_date: chrono::DateTime<chrono::Local>) -> Vec<Task> {
+    match Command::new("git")
+        .args(["log", "--pretty=format:%s|%cd"])
+        .output()
+    {
+        Ok(output) => {
+            if output.status.success() {
+                str::from_utf8(&output.stdout)
+                    .unwrap_or("")
+                    .lines()
+                    .filter_map(|line| {
+                        let parts: Vec<&str> = line.split('|').collect();
+                        if parts.len() == 2 {
+                            let months = [
+                                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
+                                "Oct", "Nov", "Dec",
+                            ];
+
+                            let name = parts[0].to_string();
+                            // Wed Mar 13 20:19:15 2024
+                            let parts: Vec<&str> = parts[1].split(' ').collect();
+                            let day = parts[2];
+                            let mut month = months
+                                .iter()
+                                .position(|&x| x == parts[1])
+                                .map(|x| (x + 1).to_string())
+                                .unwrap_or_else(|| "01".to_string());
+                            if month.len() == 1 {
+                                month = format!("0{}", month);
+                            }
+                            let month = month;
+                            let year = parts[4];
+                            let time = parts[3];
+
+                            // "2014-11-28T12:00:09Z"
+                            let date = format!("{}-{}-{}T{}Z", year, month, day, time);
+                            let created_at = date.parse::<chrono::DateTime<chrono::Utc>>();
+                            if created_at.is_err() {
+                                eprintln!("Failed to parse date: {}", date);
+                            }
+
+                            if created_at.is_ok() && created_at.unwrap() < start_date {
+                                return None;
+                            }
+
+                            Some(Task {
+                                name,
+                                created_at: created_at.unwrap().into(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                eprintln!("There was an error!\n");
+
+                eprintln!(
+                    "Git command failed with error: {}",
+                    str::from_utf8(&output.stderr).unwrap_or("Unknown error")
+                );
+                Vec::new()
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to execute git command: {}", e);
+            Vec::new()
+        }
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Session {
     tasks: Vec<Task>,
@@ -57,12 +131,19 @@ impl Session {
         }
     }
 
+    fn get_tasks_clone_sorted(&self) -> Vec<Task> {
+        let mut tasks = self.tasks.clone();
+        tasks.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        tasks
+    }
+
     fn begin(&mut self) {
         if self.working {
             println!("Job session already started");
         } else {
             println!("Job session started");
             self.start_time = chrono::Local::now();
+            self.tasks.clear();
             self.working = true;
         }
     }
@@ -76,7 +157,9 @@ impl Session {
                 chrono::Local::now().format("%d-%m-%Y %H:%M:%S")
             );
 
-            for task in &self.tasks {
+            let tasks = self.get_tasks_clone_sorted();
+
+            for task in tasks {
                 println!(
                     "  {} - Task: {}",
                     task.created_at.format("%d-%m-%Y %H:%M:%S"),
@@ -131,9 +214,13 @@ impl Session {
                 name: name.to_string(),
                 created_at: chrono::Local::now(),
             };
-            self.tasks.push(task);
-            println!("Task added to job session");
+            self.add_task(task);
+            println!("Task '{}' added to job session", name);
         }
+    }
+
+    fn add_task(&mut self, task: Task) {
+        self.tasks.push(task);
     }
 
     fn save(&self) {
@@ -155,11 +242,14 @@ impl Session {
                 "Job session started at {}",
                 self.start_time.format("%d-%m-%Y %H:%M:%S")
             );
+
+            let tasks = self.get_tasks_clone_sorted();
+
             println!("Tasks:");
-            if self.tasks.is_empty() {
+            if tasks.is_empty() {
                 println!("  No tasks added");
             }
-            for task in &self.tasks {
+            for task in tasks {
                 println!(
                     "  {} - {}",
                     task.created_at.format("%d-%m-%Y %H:%M:%S"),
@@ -176,6 +266,21 @@ impl Session {
         } else {
             println!("No job session started");
         }
+    }
+
+    fn extract_from_git(&mut self) {
+        if !self.working {
+            println!("No job session started");
+            return;
+        }
+
+        let start_time = self.start_time;
+        let commit_titles = get_commit_titles_since(start_time);
+        for task in commit_titles.iter() {
+            self.add_task((*task).clone());
+        }
+
+        println!("Extracted {} tasks from git commits", commit_titles.len());
     }
 }
 
@@ -218,6 +323,9 @@ fn main() {
         "status" => {
             session.status();
             return;
+        }
+        "git" => {
+            session.extract_from_git();
         }
         _ => {
             println!("ERROR: Invalid command entered: {}", args);
