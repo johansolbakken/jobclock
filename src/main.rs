@@ -44,60 +44,42 @@ fn persistent_file() -> std::path::PathBuf {
     path
 }
 
-fn get_commit_titles_since(start_date: chrono::DateTime<chrono::Local>) -> Vec<Task> {
-    match Command::new("git")
-        .args(["log", "--pretty=format:%s|%cd"])
-        .output()
-    {
+struct Commit {
+    date: chrono::DateTime<chrono::Local>,
+    title: String,
+}
+
+fn get_commits() -> Vec<Commit> {
+    match Command::new("git").args(["log"]).output() {
         Ok(output) => {
             if output.status.success() {
-                str::from_utf8(&output.stdout)
+                let mut commits = vec![];
+
+                let mut parts = str::from_utf8(&output.stdout)
                     .unwrap_or("")
-                    .lines()
-                    .filter_map(|line| {
-                        let parts: Vec<&str> = line.split('|').collect();
-                        if parts.len() == 2 {
-                            let months = [
-                                "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
-                                "Oct", "Nov", "Dec",
-                            ];
+                    .split("\n\n")
+                    .peekable();
 
-                            let name = parts[0].to_string();
-                            // Wed Mar 13 20:19:15 2024
-                            let parts: Vec<&str> = parts[1].split(' ').collect();
-                            let day = parts[2];
-                            let mut month = months
-                                .iter()
-                                .position(|&x| x == parts[1])
-                                .map(|x| (x + 1).to_string())
-                                .unwrap_or_else(|| "01".to_string());
-                            if month.len() == 1 {
-                                month = format!("0{}", month);
-                            }
-                            let month = month;
-                            let year = parts[4];
-                            let time = parts[3];
+                while parts.peek().is_some() {
+                    // commit header: "commit <hash>\nAuthor: <author>\nDate: <date>\n\n<title>"
 
-                            // "2014-11-28T12:00:09Z"
-                            let date = format!("{}-{}-{}T{}Z", year, month, day, time);
-                            let created_at = date.parse::<chrono::DateTime<chrono::Utc>>();
-                            if created_at.is_err() {
-                                eprintln!("Failed to parse date: {}", date);
-                            }
+                    let header = parts.next().unwrap().split('\n').collect::<Vec<&str>>();
+                    let date = header[2]
+                        .to_string()
+                        .replace("Date: ", "")
+                        .trim()
+                        .to_string();
+                    let title = parts.next().unwrap().to_string().trim().to_string();
+                    let date = date.split(' ').skip(1).collect::<Vec<&str>>().join(" ");
 
-                            if created_at.is_ok() && created_at.unwrap() < start_date {
-                                return None;
-                            }
+                    let date = chrono::DateTime::parse_from_str(&date, "%b %d %H:%M:%S %Y %z")
+                        .unwrap()
+                        .into();
 
-                            Some(Task {
-                                name,
-                                created_at: created_at.unwrap().into(),
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
+                    commits.push(Commit { date, title });
+                }
+
+                commits
             } else {
                 eprintln!("There was an error!\n");
 
@@ -113,6 +95,22 @@ fn get_commit_titles_since(start_date: chrono::DateTime<chrono::Local>) -> Vec<T
             Vec::new()
         }
     }
+}
+
+fn get_commit_titles_since(start_date: chrono::DateTime<chrono::Local>) -> Vec<Task> {
+    let commits = get_commits();
+    let mut tasks = vec![];
+
+    for commit in commits {
+        if commit.date > start_date {
+            tasks.push(Task {
+                name: commit.title,
+                created_at: commit.date,
+            });
+        }
+    }
+
+    tasks
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -360,5 +358,11 @@ mod tests {
         session.end();
         assert_eq!(session.working, false);
         assert_eq!(session.tasks.len(), 0);
+    }
+
+    #[test]
+    fn test_get_commits() {
+        let commits = get_commits();
+        println!("Commits {:?}", commits.len());
     }
 }
